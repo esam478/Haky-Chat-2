@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Haky Chat - حاكي</title>
+
+    <!-- PWA installability -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1154ff">
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Haky Chat">
+
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: Tahoma, sans-serif; }
+        body { background-color: #dadbd4; display: flex; justify-content: center; align-items: center; height: 100vh; }
+
+        /* شاشة تسجيل الدخول */
+        #auth-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #f0f2f5; display: flex; justify-content: center; align-items: center; z-index: 1000;
+        }
+        .auth-box { background: white; padding: 30px; border-radius: 8px; width: 340px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); text-align: center; }
+        .auth-box img.brand-logo { width: 64px; height: 64px; margin-bottom: 10px; }
+        .auth-box h2 { margin-bottom: 20px; color: #2b7ade; }
+        .auth-box input { width: 100%; padding: 10px; margin-bottom: 12px; border: 1px solid #ccc; border-radius: 5px; }
+        .auth-box button { width: 100%; padding: 10px; background: #2b7ade; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-top: 5px; }
+        .auth-box .secondary-btn { background: #6c757d; margin-top: 8px; }
+
+        /* حاوية التطبيق */
+        .app-container { width: 100%; max-width: 1000px; height: 95vh; background-color: #f0f2f5; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.2); border-radius: 8px; overflow: hidden; }
+
+        /* القائمة الجانبية */
+        .sidebar { width: 35%; background-color: #ffffff; border-left: 1px solid #d1d7db; display: flex; flex-direction: column; }
+        .sidebar-header { padding: 15px; background-color: #f0f2f5; display: flex; justify-content: space-between; align-items: center; font-weight: bold; color: #54656f; font-size: 13px; }
+        .sidebar-header button { background: #2b7ade; color: white; border: none; padding: 5px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; }
+
+        .archive-bar { background: #e9edef; padding: 10px 15px; font-size: 13px; color: #54656f; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #d1d7db; }
+        .archive-bar:hover { background: #f5f6f6; }
+
+        .chat-list { overflow-y: auto; flex: 1; }
+        .chat-item { padding: 15px; border-bottom: 1px solid #f0f2f5; cursor: pointer; background-color: #fff; display: flex; justify-content: space-between; align-items: center; }
+        .chat-item:hover { background-color: #f5f6f6; }
+
+        /* منطقة الدردشة */
+        .chat-area { width: 65%; display: flex; flex-direction: column; background-color: #efeae2; position: relative; }
+        .chat-header { padding: 10px 15px; background-color: #f0f2f5; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #d1d7db; }
+        .chat-user-info { display: flex; align-items: center; gap: 10px; font-weight: bold; color: #111; }
+        .chat-user-info img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
+
+        /* قائمة الثلاث نقاط */
+        .menu-container { position: relative; }
+        .menu-btn { background: none; border: none; font-size: 20px; cursor: pointer; color: #54656f; padding: 5px; }
+        .dropdown-menu { display: none; position: absolute; left: 0; top: 40px; background: white; box-shadow: 0 4px 10px rgba(0,0,0,0.2); border-radius: 6px; width: 200px; z-index: 100; list-style: none; padding: 8px 0; }
+        .dropdown-menu li { padding: 10px 15px; font-size: 13px; cursor: pointer; color: #333; }
+        .dropdown-menu li:hover { background-color: #f5f6f6; }
+
+        .messages-container { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .message { max-width: 65%; padding: 10px 14px; border-radius: 8px; font-size: 14px; position: relative; word-wrap: break-word; }
+        .message.incoming { background-color: #ffffff; align-self: flex-start; }
+        .message.outgoing { background-color: #2b7ade; color: white; align-self: flex-end; }
+        .message .delete-options { font-size: 10px; color: #ddd; display: block; margin-top: 5px; cursor: pointer; text-align: left; }
+
+        /* شاشة قفل الدردشة */
+        #lock-screen { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #efeae2; z-index: 50; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px; }
+        #lock-screen input { padding: 10px; border-radius: 5px; border: 1px solid #ccc; margin: 10px 0; width: 200px; text-align: center; }
+
+        /* شريط الإرسال السفلي */
+        .chat-input-area { padding: 10px 15px; background-color: #f0f2f5; display: flex; align-items: center; gap: 10px; position: relative; }
+        .chat-input-area input[type="text"] { flex: 1; padding: 12px 15px; border: none; border-radius: 25px; outline: none; font-size: 14px; background: white; }
+        .input-icons { display: flex; align-items: center; gap: 12px; font-size: 20px; color: #54656f; cursor: pointer; }
+        .chat-input-area input[type="file"] { display: none; }
+
+        .send-mic-btn { background-color: #2b7ade; color: white; border: none; width: 45px; height: 45px; border-radius: 50%; cursor: pointer; display: flex; justify-content: center; align-items: center; font-size: 18px; }
+
+        /* لوحة الإيموجي المنبثقة */
+        .emoji-picker { display: none; position: absolute; bottom: 70px; left: 15px; background: white; border: 1px solid #ccc; padding: 10px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); z-index: 200; font-size: 20px; width: 220px; text-align: center; }
+        .emoji-picker span { cursor: pointer; padding: 5px; display: inline-block; }
+        .emoji-picker span:hover { background: #f0f2f5; border-radius: 4px; }
+
+        /* النوافذ المنبثقة */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 500; }
+        .modal-content { background: white; padding: 20px; border-radius: 8px; width: 400px; max-height: 80vh; overflow-y: auto; }
+        .user-request-card { background: #f9f9f9; border: 1px solid #ddd; padding: 10px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
+        .btn-approve { background: #28a745; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+        .btn-reject { background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <!-- شاشة تسجيل الدخول -->
+    <div id="auth-screen">
+        <div class="auth-box">
+            <img class="brand-logo" src="icons/icon-512.png" alt="Haky Chat">
+            <h2>Haky Chat</h2>
+            <p style="margin-bottom: 15px; color: #666; font-size: 13px;">تطبيق المراسلة الآمن</p>
+            <input type="text" id="username" placeholder="اسم المستخدم">
+            <input type="password" id="password" placeholder="كلمة المرور">
+
+            <button onclick="loginUser()">دخول مستخدم</button>
+            <button class="secondary-btn" onclick="registerNewAccount()">فتح حساب جديد</button>
+
+            <p id="auth-status" style="margin-top: 10px; font-size: 12px; color: #d9534f;"></p>
+        </div>
+    </div>
+
+    <!-- واجهة التطبيق -->
+    <div class="app-container" id="app-container">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <span id="logged-user-label">Haky Chat</span>
+                <div>
+                    <button onclick="openGroupModal()">+ مجموعة</button>
+                    <button id="admin-dashboard-btn" onclick="openAdminModal()" style="background:#ffc107; color:#333; display:none; margin-right:2px;">الأدمن</button>
+                    <button onclick="logout()" style="background:#dc3545; margin-right:2px;">خروج</button>
+                </div>
+            </div>
+
+            <div id="archive-section" class="archive-bar" onclick="openArchiveModal()">
+                <span>📁 الأرشيف</span>
+            </div>
+
+            <div id="hidden-chats-bar" class="archive-bar" style="display:none; background:#e2f7cb;" onclick="unhideCurrentChat()">
+                <span>👁️ إظهار المحادثات المخفية</span>
+            </div>
+
+            <!-- تُعبَّأ ديناميكياً من /chats عبر app.js -->
+            <div class="chat-list" id="chat-list"></div>
+        </div>
+
+        <div class="chat-area" id="main-chat-area">
+            <!-- شاشة قفل الدردشة -->
+            <div id="lock-screen">
+                <h3 style="color: #333; margin-bottom: 5px;">🔒 هذه المحادثة مقفلة</h3>
+                <p style="font-size: 13px; color: #666;">أدخل رمز المرور لعرض الرسائل</p>
+                <input type="password" id="chat-lock-pass" placeholder="رمز المرور">
+                <br>
+                <button onclick="unlockChat()" style="background:#2b7ade; color:white; border:none; padding:8px 20px; border-radius:5px; cursor:pointer;">فتح</button>
+            </div>
+
+            <div class="chat-header">
+                <div class="chat-user-info">
+                    <img src="icons/icon-192.png" alt="profile" id="chat-avatar">
+                    <span id="current-chat-title">اختر محادثة</span>
+                </div>
+
+                <div class="menu-container">
+                    <button class="menu-btn" onclick="toggleMenu()">︙</button>
+                    <ul class="dropdown-menu" id="dropdown-menu">
+                        <li onclick="clearChat()">مسح محتوى الدردشة</li>
+                        <li onclick="archiveChat()">أرشفة المحادثة</li>
+                        <li onclick="lockChatModal()">قفل المحادثة</li>
+                        <li onclick="hideChat()">إخفاء المحادثة</li>
+                        <li onclick="openGroupModal()">مجموعة جديدة</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="messages-container" id="messages"></div>
+
+            <div class="emoji-picker" id="emoji-picker">
+                <span onclick="addEmoji('😊')">😊</span>
+                <span onclick="addEmoji('😂')">😂</span>
+                <span onclick="addEmoji('❤️')">❤️</span>
+                <span onclick="addEmoji('👍')">👍</span>
+                <span onclick="addEmoji('🔥')">🔥</span>
+                <span onclick="addEmoji('✨')">✨</span>
+                <span onclick="addEmoji('🙏')">🙏</span>
+                <span onclick="addEmoji('🎉')">🎉</span>
+            </div>
+
+            <div class="chat-input-area">
+                <div class="input-icons">
+                    <span onclick="toggleEmojiPicker()" title="الرموز التعبيرية">😊</span>
+                    <label for="doc-file" title="إرفاق مستند" style="cursor: pointer;">📎</label>
+                    <input type="file" id="doc-file" accept=".pdf,.doc,.docx,.txt" onchange="sendFile(this, 'doc')">
+                    <label for="media-file" title="إرفاق صورة أو فيديو" style="cursor: pointer;">📷</label>
+                    <input type="file" id="media-file" accept="image/*,video/*" onchange="sendFile(this, 'media')">
+                </div>
+
+                <input type="text" id="message-input" placeholder="اكتب رسالة في Haky Chat..." onkeypress="checkEnter(event)">
+
+                <button class="send-mic-btn" id="send-mic-btn" onclick="handleSendButton()" title="إرسال">➤</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="admin-modal">
+        <div class="modal-content">
+            <h3>لوحة تحكم الأدمن (الطلبات المعلقة)</h3>
+            <div id="requests-list" style="margin-top: 15px;"></div>
+            <button onclick="closeAdminModal()" style="background:#6c757d; margin-top:15px; width:100%; padding:8px; color:white; border:none; border-radius:4px; cursor:pointer;">إغلاق</button>
+        </div>
+    </div>
+
+    <div class="modal" id="archive-modal">
+        <div class="modal-content">
+            <h3>المحادثات المؤرشفة</h3>
+            <div id="archive-list" style="margin: 15px 0;"></div>
+            <button onclick="closeArchiveModal()" style="background:#6c757d; width:100%; padding:8px; color:white; border:none; border-radius:4px; cursor:pointer;">إغلاق</button>
+        </div>
+    </div>
+
+    <div class="modal" id="group-modal">
+        <div class="modal-content">
+            <h3>إنشاء مجموعة جديدة</h3>
+            <input type="text" id="group-name" placeholder="اسم المجموعة الجديدة" style="width:100%; padding:8px; margin:10px 0; border:1px solid #ccc; border-radius:4px;">
+            <button onclick="createGroup()" style="background:#2b7ade; width:100%; padding:8px; color:white; border:none; border-radius:4px; cursor:pointer;">إنشاء</button>
+            <button onclick="closeGroupModal()" style="background:#e53935; margin-top:5px; width:100%; padding:8px; color:white; border:none; border-radius:4px; cursor:pointer;">إلغاء</button>
+        </div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
